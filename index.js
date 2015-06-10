@@ -9,7 +9,8 @@ module.exports = function(schema, options) {
 		distance = natural[options.distance || 'JaroWinklerDistance'],
 		fields = options.fields,
 		keywordsPath = options.keywordsPath || '_keywords',
-		relevancePath = options.relevancePath || '_relevance';
+		relevancePath = options.relevancePath || '_relevance',
+		priorityField = options.priorityField || false;
 
 	// init keywords field
 	var schemaMixin = {};
@@ -41,16 +42,25 @@ module.exports = function(schema, options) {
 		conditions[keywordsPath] = {$in: tokens};
 		outFields[keywordsPath] = 1;
 
+		if(priorityField)
+			outFields[priorityField] = 1;
+
 		mongoose.Model.find.call(this, conditions, outFields, findOptions,
 		function(err, docs) {
 			if (err) return callback(err);
+
 
 			var totalCount = docs.length,
 				processMethod = options.sort ? 'map' : 'sortBy';
 
 			// count relevance and sort results if sort option not defined
 			docs = _(docs)[processMethod](function(doc) {
-				var relevance = processRelevance(tokens, doc.get(keywordsPath));
+				var priorityFieldProcessed = false;
+
+				if(priorityField)
+					var priorityFieldProcessed = _(stemmer.tokenizeAndStem(doc.get(priorityField))).unique();
+
+				var relevance = processRelevance(tokens, doc.get(keywordsPath), priorityFieldProcessed);
 				doc.set(relevancePath, relevance);
 				return processMethod === 'map' ? doc : -relevance;
 			});
@@ -92,18 +102,22 @@ module.exports = function(schema, options) {
 			});
 		});
 
-		function processRelevance(queryTokens, resultTokens) {
+		function processRelevance(queryTokens, resultTokens, priorityField) {
+
 			var relevance = 0;
 
 			queryTokens.forEach(function(token) {
-				relevance += tokenRelevance(token, resultTokens);
+				relevance += tokenRelevance(token, resultTokens, priorityField);
 			});
+
 			return relevance;
 		}
 
-		function tokenRelevance(token, resultTokens) {
+		function tokenRelevance(token, resultTokens, priorityField) {
 			var relevanceThreshold = 0.5,
-				result = 0;
+				result = 0,
+				importanceImpact = 50;
+
 
 			resultTokens.forEach(function(rToken) {
 				var relevance = distance(token, rToken);
@@ -111,6 +125,13 @@ module.exports = function(schema, options) {
 					result += relevance;
 				}
 			});
+
+			if(priorityField) {
+				for(var i = 0; i < resultTokens.length; i++) {
+					if(resultTokens[i] in priorityField )
+						result = result + importanceImpact;
+				}
+			}
 
 			return result;
 		}
