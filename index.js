@@ -49,7 +49,6 @@ module.exports = function(schema, options) {
 		function(err, docs) {
 			if (err) return callback(err);
 
-
 			var totalCount = docs.length,
 				processMethod = options.sort ? 'map' : 'sortBy';
 
@@ -126,12 +125,10 @@ module.exports = function(schema, options) {
 				}
 			});
 
-			if(priorityField) {
-				for(var i = 0; i < resultTokens.length; i++) {
-					if(resultTokens[i] in priorityField )
-						result = result + importanceImpact;
-				}
-			}
+			for (var i = 0; i < priorityField.length; i++) {
+				if(priorityField[i] === token)
+					result = result + importanceImpact;
+			};
 
 			return result;
 		}
@@ -152,7 +149,7 @@ module.exports = function(schema, options) {
 					doc.updateKeywords();
 
 					doc.save(function(err) {
-						if (err) console.log('[mongoose search plugin err] ', err, err.stack);
+						if (err) console.error('[mongoose search plugin err] ', err, err.stack);
 						done();
 					});
 				});
@@ -166,7 +163,7 @@ module.exports = function(schema, options) {
 		this.set(keywordsPath, this.processKeywords());
 	};
 
-	schema.methods.processKeywords = function() {
+	schema.methods.processKeywords = function(string) {
 		var self = this;
 		return _(stemmer.tokenizeAndStem(fields.map(function(field) {
 			var val = self.get(field);
