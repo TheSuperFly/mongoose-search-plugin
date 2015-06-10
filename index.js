@@ -163,7 +163,7 @@ module.exports = function(schema, options) {
 		this.set(keywordsPath, this.processKeywords());
 	};
 
-	schema.methods.processKeywords = function(string) {
+	schema.methods.processKeywords = function() {
 		var self = this;
 		return _(stemmer.tokenizeAndStem(fields.map(function(field) {
 			var val = self.get(field);
