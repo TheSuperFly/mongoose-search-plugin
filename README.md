@@ -3,6 +3,8 @@
 Simple mongoose plugin for full text search.
 Uses [natural](https://github.com/NaturalNode/natural) stemming and distance algorythms.
 
+Modified by TheSuperFly for priority keywords feature.
+
 ## Example
 ``` js
   var mongoose = require('mongoose'),
@@ -46,7 +48,8 @@ Uses [natural](https://github.com/NaturalNode/natural) stemming and distance alg
     relevancePath: '_relevance', // path for relevance number, '_relevance' as default
     fields: [], // array of fields to use as keywords (can be String or [String] types),
     stemmer: 'PorterStemmer', // natural stemmer, PorterStemmer as default
-    distance: 'JaroWinklerDistance' // distance algorythm, JaroWinklerDistance as default
+    distance: 'JaroWinklerDistance', // distance algorythm, JaroWinklerDistance as default
+    priorityField: 'field' // priority keywords field in document. default: false
   };
   Schema.plugin(searchPlugin(options));
 ```
