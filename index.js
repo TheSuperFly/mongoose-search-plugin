@@ -20,18 +20,16 @@ module.exports = function(schema, options) {
 	schema.path(keywordsPath).index(true);
 
 	// search method
-	schema.statics.search = function(query, fields, options, callback) {
-		if (arguments.length === 2) {
-			callback = fields;
-			options = {};
+	schema.statics.search = function(args, callback) {
+		if(typeof args.query !== "undefined" && args.query !== null) {
+			var query = args.query;
 		} else {
-			if (arguments.length === 3) {
-				callback = options;
-				options = {};
-			} else {
-				options = options || {};
-			}
+			console.error("[mongoose search plugin err] A Query is required.");
 		}
+
+		var fields = args.fields || null;
+
+		var options = args.options || {};
 
 		var self = this;
 		var tokens = _(stemmer.tokenizeAndStem(query)).unique(),
