@@ -9,8 +9,7 @@ module.exports = function(schema, options) {
 		distance = natural[options.distance || 'JaroWinklerDistance'],
 		fields = options.fields,
 		keywordsPath = options.keywordsPath || '_keywords',
-		relevancePath = options.relevancePath || '_relevance',
-		priorityField = options.priorityField || false;
+		relevancePath = options.relevancePath || '_relevance';
 
 	// init keywords field
 	var schemaMixin = {};
@@ -31,6 +30,12 @@ module.exports = function(schema, options) {
 
 		var options = args.options || {};
 
+		if(typeof args.importance !== "undefined" && args.importance !== null) {
+			var priorityField = (Array.isArray(args.importance)) ? args.importance : [args.importance];
+		} else {
+			var priorityField = false;
+		}
+
 		var self = this;
 		var tokens = _(stemmer.tokenizeAndStem(query)).unique(),
 			conditions = options.conditions || {},
@@ -40,8 +45,11 @@ module.exports = function(schema, options) {
 		conditions[keywordsPath] = {$in: tokens};
 		outFields[keywordsPath] = 1;
 
-		if(priorityField)
-			outFields[priorityField] = 1;
+		if(priorityField) {
+			for (var i = 0; i < priorityField.length; i++) {
+				outFields[priorityField[i].field] = 1;
+			};
+		}
 
 		mongoose.Model.find.call(this, conditions, outFields, findOptions,
 		function(err, docs) {
@@ -54,8 +62,15 @@ module.exports = function(schema, options) {
 			docs = _(docs)[processMethod](function(doc) {
 				var priorityFieldProcessed = false;
 
-				if(priorityField)
-					var priorityFieldProcessed = _(stemmer.tokenizeAndStem(doc.get(priorityField))).unique();
+				if(priorityField) {
+					var priorityFieldProcessed = [];
+					for (var i = 0; i < priorityField.length; i++) {
+						priorityFieldProcessed.push({
+							data : (_(stemmer.tokenizeAndStem(doc.get(priorityField[i].field).toString())).unique()),
+							multiplicator : priorityField[i].multiplicator
+						});
+					};
+				}
 
 				var relevance = processRelevance(tokens, doc.get(keywordsPath), priorityFieldProcessed);
 				doc.set(relevancePath, relevance);
@@ -100,7 +115,6 @@ module.exports = function(schema, options) {
 		});
 
 		function processRelevance(queryTokens, resultTokens, priorityField) {
-
 			var relevance = 0;
 
 			queryTokens.forEach(function(token) {
@@ -115,7 +129,6 @@ module.exports = function(schema, options) {
 				result = 0,
 				importanceImpact = 50;
 
-
 			resultTokens.forEach(function(rToken) {
 				var relevance = distance(token, rToken);
 				if (relevance > relevanceThreshold) {
@@ -124,8 +137,11 @@ module.exports = function(schema, options) {
 			});
 
 			for (var i = 0; i < priorityField.length; i++) {
-				if(priorityField[i] === token)
-					result = result + importanceImpact;
+				for (var z = 0; z < priorityField[i].data.length; z++) {
+					if(priorityField[i].data[z] === token) {
+						result = result + (importanceImpact * priorityField[i].multiplicator);
+					}
+				};
 			};
 
 			return result;
